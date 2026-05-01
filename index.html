@@ -1,0 +1,228 @@
+
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMCSC - வருமானம் மற்றும் செலவு மேலாண்மை</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+
+    <div class="max-w-5xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-indigo-700">SMCSC டிஜிட்டல் கணக்கு புத்தகம்</h1>
+            <p class="text-gray-500">வருமானம் மற்றும் செலவுகளைத் துல்லியமாக நிர்வகிக்கவும்</p>
+        </div>
+
+        <!-- Dashboard Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 text-white text-center">
+            <div class="bg-green-500 p-4 rounded-xl shadow">
+                <p class="text-sm">மொத்த வருமானம்</p>
+                <h2 id="dispIncome" class="text-2xl font-bold">₹ 0</h2>
+            </div>
+            <div class="bg-red-500 p-4 rounded-xl shadow">
+                <p class="text-sm">மொத்த செலவு</p>
+                <h2 id="dispExpense" class="text-2xl font-bold">₹ 0</h2>
+            </div>
+            <div class="bg-blue-600 p-4 rounded-xl shadow">
+                <p class="text-sm">மீதம் (Balance)</p>
+                <h2 id="dispBalance" class="text-2xl font-bold">₹ 0</h2>
+            </div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="card p-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-1">தேதி</label>
+                    <input type="date" id="entryDate" class="w-full border rounded-lg px-3 py-2 outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1">வகை</label>
+                    <select id="entryType" class="w-full border rounded-lg px-3 py-2 outline-none focus:border-indigo-500">
+                        <option value="Income" class="text-green-600 font-bold">வருமானம் (+)</option>
+                        <option value="Expense" class="text-red-600 font-bold">செலவு (-)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1">விவரம்</label>
+                    <select id="entryCategory" class="w-full border rounded-lg px-3 py-2 outline-none focus:border-indigo-500">
+                        <!-- Expenses -->
+                        <optgroup label="செலவு வகைகள்">
+                            <option value="கடை வாடகை">கடை வாடகை</option>
+                            <option value="பெட்ரோல்">பெட்ரோல்</option>
+                            <option value="வீட்டு செலவுகள்">வீட்டு செலவுகள்</option>
+                            <option value="சாப்பாடு செலவுகள்">சாப்பாடு செலவுகள்</option>
+                            <option value="லோன்">லோன்</option>
+                            <option value="ஏ பி ஐ ரீசார்ஜ்">ஏ பி ஐ ரீசார்ஜ்</option>
+                            <option value="இதர செலவுகள்">இதர செலவுகள்</option>
+                            <option value="பவானி மல்லிகை">பவானி மல்லிகை</option>
+                            <option value="மனைவி">மனைவி</option>
+                        </optgroup>
+                        <!-- Income -->
+                        <optgroup label="வருமான வகைகள்">
+                            <option value="கடை வருமானம்">கடை வருமானம்</option>
+                            <option value="ஆன்லைன் சர்வீஸ்">ஆன்லைன் சர்வீஸ்</option>
+                            <option value="இதர வருமானம்">இதர வருமானம்</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1">தொகை (₹)</label>
+                    <input type="number" id="entryAmount" placeholder="0" class="w-full border rounded-lg px-3 py-2 outline-none focus:border-indigo-500">
+                </div>
+            </div>
+            <button onclick="addEntry()" class="w-full mt-4 bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700">பதிவேற்று</button>
+        </div>
+
+        <!-- Table Section -->
+        <div class="card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">வரவு செலவு பட்டியல்</h2>
+                <button onclick="downloadPDF()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-green-700">PDF டவுன்லோட்</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-gray-100 border-b">
+                            <th class="p-3">தேதி</th>
+                            <th class="p-3">விவரம்</th>
+                            <th class="p-3">வகை</th>
+                            <th class="p-3 text-right">வருமானம் (₹)</th>
+                            <th class="p-3 text-right">செலவு (₹)</th>
+                            <th class="p-3 text-center">நீக்கு</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mainTableBody">
+                        <!-- Data rows -->
+                    </tbody>
+                </table>
+            </div>
+            <button onclick="clearDatabase()" class="mt-6 text-red-500 text-sm underline">அனைத்து கணக்குகளையும் அழி</button>
+        </div>
+    </div>
+
+    <script>
+        let myData = JSON.parse(localStorage.getItem('smcsc_accounts')) || [];
+
+        function renderData() {
+            const tbody = document.getElementById('mainTableBody');
+            tbody.innerHTML = '';
+            
+            let totalInc = 0;
+            let totalExp = 0;
+
+            // Sort by date (Newest first)
+            myData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            myData.forEach((item, index) => {
+                const isInc = item.type === 'Income';
+                const incAmt = isInc ? parseFloat(item.amount) : 0;
+                const expAmt = !isInc ? parseFloat(item.amount) : 0;
+                
+                totalInc += incAmt;
+                totalExp += expAmt;
+
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3">${item.date}</td>
+                        <td class="p-3">${item.category}</td>
+                        <td class="p-3">
+                            <span class="px-2 py-1 rounded text-xs font-bold ${isInc ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                                ${isInc ? 'வருமானம்' : 'செலவு'}
+                            </span>
+                        </td>
+                        <td class="p-3 text-right text-green-600 font-semibold">${incAmt > 0 ? '₹'+incAmt.toFixed(2) : '-'}</td>
+                        <td class="p-3 text-right text-red-600 font-semibold">${expAmt > 0 ? '₹'+expAmt.toFixed(2) : '-'}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="deleteRow(${index})" class="text-gray-400 hover:text-red-500">✕</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('dispIncome').innerText = `₹ ${totalInc.toFixed(2)}`;
+            document.getElementById('dispExpense').innerText = `₹ ${totalExp.toFixed(2)}`;
+            document.getElementById('dispBalance').innerText = `₹ ${(totalInc - totalExp).toFixed(2)}`;
+            
+            localStorage.setItem('smcsc_accounts', JSON.stringify(myData));
+        }
+
+        function addEntry() {
+            const date = document.getElementById('entryDate').value;
+            const type = document.getElementById('entryType').value;
+            const category = document.getElementById('entryCategory').value;
+            const amount = document.getElementById('entryAmount').value;
+
+            if (!date || !amount) {
+                alert("தேதி மற்றும் தொகையை நிரப்பவும்!");
+                return;
+            }
+
+            myData.push({ date, type, category, amount });
+            renderData();
+            document.getElementById('entryAmount').value = '';
+        }
+
+        function deleteRow(index) {
+            if(confirm("இதை நீக்க வேண்டுமா?")) {
+                myData.splice(index, 1);
+                renderData();
+            }
+        }
+
+        function clearDatabase() {
+            if(confirm("அனைத்து தரவுகளும் நிரந்தரமாக அழிக்கப்படும். தொடரலாமா?")) {
+                myData = [];
+                renderData();
+            }
+        }
+
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(18);
+            doc.text("SMCSC - Monthly Financial Report", 14, 15);
+            doc.setFontSize(10);
+            doc.text("Report generated on: " + new Date().toLocaleDateString(), 14, 22);
+
+            const tableRows = myData.map(item => [
+                item.date,
+                item.category,
+                item.type === 'Income' ? 'Income' : 'Expense',
+                item.type === 'Income' ? item.amount : '-',
+                item.type === 'Expense' ? item.amount : '-'
+            ]);
+
+            const tInc = myData.filter(i => i.type === 'Income').reduce((s, c) => s + parseFloat(c.amount), 0);
+            const tExp = myData.filter(i => i.type === 'Expense').reduce((s, c) => s + parseFloat(c.amount), 0);
+
+            doc.autoTable({
+                head: [['Date', 'Description', 'Type', 'Income (INR)', 'Expense (INR)']],
+                body: tableRows,
+                startY: 30,
+            });
+
+            const finalY = doc.lastAutoTable.finalY + 10;
+            doc.text(`Total Income: Rs. ${tInc.toFixed(2)}`, 14, finalY);
+            doc.text(`Total Expense: Rs. ${tExp.toFixed(2)}`, 14, finalY + 7);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Net Balance: Rs. ${(tInc - tExp).toFixed(2)}`, 14, finalY + 14);
+
+            doc.save("SMCSC_Accounts.pdf");
+        }
+
+        document.getElementById('entryDate').valueAsDate = new Date();
+        renderData();
+    </script>
+</body>
+</html>
