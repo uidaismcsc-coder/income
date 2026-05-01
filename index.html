@@ -1,19 +1,19 @@
-
 <!DOCTYPE html>
 <html lang="ta">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMCSC - வருமானம் மற்றும் செலவு மேலாண்மை</title>
+    <title>SMCSC - டிஜிட்டல் கணக்கு புத்தகம்</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Madurai:wght@400;700&display=swap');
+        body { font-family: 'Hind Madurai', sans-serif; background-color: #fff5f7; }
+        .marriage-card { background: white; border-radius: 15px; border-top: 5px solid #db2777; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     </style>
 </head>
-<body class="p-4 md:p-6">
+<body class="p-4 md:p-8">
 
     <div class="max-w-5xl mx-auto">
         <!-- Header -->
@@ -106,12 +106,17 @@
                     </tbody>
                 </table>
             </div>
-            <button onclick="clearDatabase()" class="mt-6 text-red-500 text-sm underline">அனைத்து கணக்குகளையும் அழி</button>
+            <div class="mt-10 flex justify-center">
+                <button onclick="clearDatabase()" class="text-red-400 hover:text-red-600 text-sm flex items-center gap-1 transition">
+                    ⚠️ அனைத்து கணக்குகளையும் முழுமையாக அழி
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        let myData = JSON.parse(localStorage.getItem('smcsc_accounts')) || [];
+        // Data Handling with LocalStorage
+        let myData = JSON.parse(localStorage.getItem('marriage_accounts')) || [];
 
         function renderData() {
             const tbody = document.getElementById('mainTableBody');
@@ -132,28 +137,28 @@
                 totalExp += expAmt;
 
                 tbody.innerHTML += `
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="p-3">${item.date}</td>
-                        <td class="p-3">${item.category}</td>
-                        <td class="p-3">
-                            <span class="px-2 py-1 rounded text-xs font-bold ${isInc ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
-                                ${isInc ? 'வருமானம்' : 'செலவு'}
+                    <tr class="hover:bg-pink-50 transition">
+                        <td class="p-4 font-medium text-gray-700">${item.date}</td>
+                        <td class="p-4 text-gray-800 font-semibold">${item.category}</td>
+                        <td class="p-4">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold ${isInc ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                                ${isInc ? 'மொய்' : 'செலவு'}
                             </span>
                         </td>
-                        <td class="p-3 text-right text-green-600 font-semibold">${incAmt > 0 ? '₹'+incAmt.toFixed(2) : '-'}</td>
-                        <td class="p-3 text-right text-red-600 font-semibold">${expAmt > 0 ? '₹'+expAmt.toFixed(2) : '-'}</td>
-                        <td class="p-3 text-center">
-                            <button onclick="deleteRow(${index})" class="text-gray-400 hover:text-red-500">✕</button>
+                        <td class="p-4 text-right text-green-600 font-bold">${incAmt > 0 ? '₹'+incAmt.toLocaleString('en-IN') : '-'}</td>
+                        <td class="p-4 text-right text-red-600 font-bold">${expAmt > 0 ? '₹'+expAmt.toLocaleString('en-IN') : '-'}</td>
+                        <td class="p-4 text-center">
+                            <button onclick="deleteRow(${index})" class="text-gray-300 hover:text-red-500 transition text-xl">🗑</button>
                         </td>
                     </tr>
                 `;
             });
 
-            document.getElementById('dispIncome').innerText = `₹ ${totalInc.toFixed(2)}`;
-            document.getElementById('dispExpense').innerText = `₹ ${totalExp.toFixed(2)}`;
-            document.getElementById('dispBalance').innerText = `₹ ${(totalInc - totalExp).toFixed(2)}`;
+            document.getElementById('dispIncome').innerText = `₹ ${totalInc.toLocaleString('en-IN')}`;
+            document.getElementById('dispExpense').innerText = `₹ ${totalExp.toLocaleString('en-IN')}`;
+            document.getElementById('dispBalance').innerText = `₹ ${(totalInc - totalExp).toLocaleString('en-IN')}`;
             
-            localStorage.setItem('smcsc_accounts', JSON.stringify(myData));
+            localStorage.setItem('marriage_accounts', JSON.stringify(myData));
         }
 
         function addEntry() {
@@ -162,25 +167,28 @@
             const category = document.getElementById('entryCategory').value;
             const amount = document.getElementById('entryAmount').value;
 
-            if (!date || !amount) {
-                alert("தேதி மற்றும் தொகையை நிரப்பவும்!");
+            if (!date || !amount || !category) {
+                alert("தயவுசெய்து அனைத்து விபரங்களையும் பூர்த்தி செய்யவும்!");
                 return;
             }
 
             myData.push({ date, type, category, amount });
             renderData();
+            
+            // Clear inputs except date
             document.getElementById('entryAmount').value = '';
+            document.getElementById('entryCategory').value = '';
         }
 
         function deleteRow(index) {
-            if(confirm("இதை நீக்க வேண்டுமா?")) {
+            if(confirm("நிச்சயமாக இந்தப் பதிவை நீக்க வேண்டுமா?")) {
                 myData.splice(index, 1);
                 renderData();
             }
         }
 
         function clearDatabase() {
-            if(confirm("அனைத்து தரவுகளும் நிரந்தரமாக அழிக்கப்படும். தொடரலாமா?")) {
+            if(confirm("எச்சரிக்கை: அனைத்து தரவுகளும் நிரந்தரமாக அழிக்கப்படும். தொடரலாமா?")) {
                 myData = [];
                 renderData();
             }
@@ -190,37 +198,44 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            doc.setFontSize(18);
-            doc.text("SMCSC - Monthly Financial Report", 14, 15);
+            doc.setFontSize(22);
+            doc.setTextColor(219, 39, 119); // Pink color
+            doc.text("Financial Report", 14, 20);
+            
             doc.setFontSize(10);
-            doc.text("Report generated on: " + new Date().toLocaleDateString(), 14, 22);
+            doc.setTextColor(100);
+            doc.text("Generated by SMCSC Digital Portal", 14, 28);
+            doc.text("Date: " + new Date().toLocaleDateString(), 14, 33);
 
             const tableRows = myData.map(item => [
                 item.date,
                 item.category,
-                item.type === 'Income' ? 'Income' : 'Expense',
-                item.type === 'Income' ? item.amount : '-',
-                item.type === 'Expense' ? item.amount : '-'
+                item.type === 'Income' ? 'Moi/Income' : 'Expense',
+                item.type === 'Income' ? 'Rs.' + item.amount : '-',
+                item.type === 'Expense' ? 'Rs.' + item.amount : '-'
             ]);
 
             const tInc = myData.filter(i => i.type === 'Income').reduce((s, c) => s + parseFloat(c.amount), 0);
             const tExp = myData.filter(i => i.type === 'Expense').reduce((s, c) => s + parseFloat(c.amount), 0);
 
             doc.autoTable({
-                head: [['Date', 'Description', 'Type', 'Income (INR)', 'Expense (INR)']],
+                head: [['Date', 'Description', 'Type', 'Income', 'Expense']],
                 body: tableRows,
-                startY: 30,
+                startY: 40,
+                headStyles: { fillColor: [219, 39, 119] }
             });
 
-            const finalY = doc.lastAutoTable.finalY + 10;
-            doc.text(`Total Income: Rs. ${tInc.toFixed(2)}`, 14, finalY);
-            doc.text(`Total Expense: Rs. ${tExp.toFixed(2)}`, 14, finalY + 7);
+            const finalY = doc.lastAutoTable.finalY + 15;
+            doc.setFontSize(12);
+            doc.text(`Total Income: Rs. ${tInc.toLocaleString('en-IN')}`, 14, finalY);
+            doc.text(`Total Expense: Rs. ${tExp.toLocaleString('en-IN')}`, 14, finalY + 8);
             doc.setFont(undefined, 'bold');
-            doc.text(`Net Balance: Rs. ${(tInc - tExp).toFixed(2)}`, 14, finalY + 14);
+            doc.text(`Balance Amount: Rs. ${(tInc - tExp).toLocaleString('en-IN')}`, 14, finalY + 16);
 
-            doc.save("SMCSC_Accounts.pdf");
+            doc.save("Accounts_SMCSC.pdf");
         }
 
+        // Set default date to today
         document.getElementById('entryDate').valueAsDate = new Date();
         renderData();
     </script>
