@@ -7,38 +7,200 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 🔧 YOUR FIREBASE CONFIG — Replace with your project's values
+        // Go to: console.firebase.google.com → Project Settings → Your apps
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Expose db and Firestore functions to window for use in non-module scripts
+        window._db = db;
+        window._fsOps = { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy };
+        window._firebaseReady = true;
+        window.dispatchEvent(new Event('firebaseReady'));
+    </script>
+
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f0f4ff 0%, #faf8ff 50%, #f0f7ff 100%);
+            min-height: 100vh;
+        }
+
+        /* ── 3D CARD STYLES ── */
+        .card-3d-wrap {
+            perspective: 900px;
+            width: 100%;
+            height: 130px;
+        }
+        .card-3d {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.65s cubic-bezier(0.23, 1, 0.32, 1);
+            border-radius: 18px;
+        }
+        .card-3d-wrap:hover .card-3d {
+            transform: rotateY(180deg);
+        }
+        .card-face {
+            position: absolute;
+            inset: 0;
+            border-radius: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            padding: 16px;
+            text-align: center;
+        }
+        .card-front { /* shown by default */ }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Income card */
+        .income-card .card-front { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+        .income-card .card-back  { background: linear-gradient(135deg, #bbf7d0, #86efac); color: #14532d; }
+
+        /* Expense card */
+        .expense-card .card-front { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+        .expense-card .card-back  { background: linear-gradient(135deg, #fecaca, #fca5a5); color: #7f1d1d; }
+
+        /* Balance card */
+        .balance-card .card-front { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; }
+        .balance-card .card-back  { background: linear-gradient(135deg, #c7d2fe, #a5b4fc); color: #1e1b4b; }
+
+        .card-value { font-size: 1.75rem; font-weight: 800; line-height: 1.1; }
+        .card-label { font-size: 0.78rem; opacity: 0.9; margin-bottom: 4px; }
+        .card-back-hint { font-size: 0.72rem; opacity: 0.7; margin-top: 6px; }
+        .card-back-icon { font-size: 2rem; margin-bottom: 4px; }
+
+        /* ── MAIN CARD ── */
+        .panel { background: white; border-radius: 16px; box-shadow: 0 4px 24px -4px rgba(80,80,160,0.08); }
+
+        /* ── SYNC STATUS ── */
+        #syncStatus {
+            position: fixed; bottom: 16px; right: 16px;
+            padding: 8px 14px; border-radius: 30px;
+            font-size: 0.78rem; font-weight: 600;
+            display: flex; align-items: center; gap: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        .sync-ok   { background: #dcfce7; color: #15803d; }
+        .sync-busy { background: #fef3c7; color: #92400e; }
+        .sync-err  { background: #fee2e2; color: #991b1b; }
+        .sync-dot  { width: 8px; height: 8px; border-radius: 50%; }
+        .sync-ok   .sync-dot { background: #22c55e; }
+        .sync-busy .sync-dot { background: #f59e0b; animation: blink 1s infinite; }
+        .sync-err  .sync-dot { background: #ef4444; }
+
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+        /* ── SETUP BANNER ── */
+        #setupBanner {
+            background: #fef3c7;
+            border: 2px dashed #f59e0b;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+        }
     </style>
 </head>
 <body class="p-4 md:p-6">
 
     <div class="max-w-5xl mx-auto">
+
         <!-- Header -->
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-indigo-700">SMCSC டிஜிட்டல் கணக்கு புத்தகம்</h1>
             <p class="text-gray-500">வருமானம் மற்றும் செலவுகளைத் துல்லியமாக நிர்வகிக்கவும்</p>
+            <p class="text-xs text-indigo-400 mt-1">☁️ Cloud Sync — அனைத்து சாதனங்களிலும் ஒரே கணக்கு</p>
         </div>
 
-        <!-- Dashboard Summary -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 text-white text-center">
-            <div class="bg-green-500 p-4 rounded-xl shadow">
-                <p class="text-sm">தேர்ந்தெடுத்த தேதியின் வருமானம்</p>
-                <h2 id="dispIncome" class="text-2xl font-bold">₹ 0</h2>
+        <!-- Setup Banner (visible until Firebase is configured) -->
+        <div id="setupBanner">
+            <p class="font-bold text-amber-800 mb-1">⚠️ Firebase அமைப்பு தேவை (One-time Setup)</p>
+            <ol class="text-amber-700 text-sm list-decimal ml-4 space-y-1">
+                <li><a href="https://console.firebase.google.com" target="_blank" class="underline font-semibold">console.firebase.google.com</a> → புதிய Project உருவாக்கவும்</li>
+                <li>Firestore Database → Create database → Start in test mode</li>
+                <li>Project Settings → Your apps → Add Web App → Config copy செய்யவும்</li>
+                <li>இந்த கோப்பில் <code class="bg-amber-100 px-1 rounded">YOUR_API_KEY</code> போன்ற இடங்களை replace செய்யவும்</li>
+            </ol>
+        </div>
+
+        <!-- 3D Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+
+            <!-- Income -->
+            <div class="card-3d-wrap income-card">
+                <div class="card-3d">
+                    <div class="card-face card-front">
+                        <p class="card-label">தேர்ந்தெடுத்த தேதியின் வருமானம்</p>
+                        <div class="card-value" id="dispIncome">₹ 0</div>
+                    </div>
+                    <div class="card-face card-back">
+                        <div class="card-back-icon">💰</div>
+                        <div class="font-bold text-lg" id="dispIncomeBack">₹ 0</div>
+                        <div class="card-back-hint">இந்த நாளின் மொத்த வருமானம்</div>
+                    </div>
+                </div>
             </div>
-            <div class="bg-red-500 p-4 rounded-xl shadow">
-                <p class="text-sm">தேர்ந்தெடுத்த தேதியின் செலவு</p>
-                <h2 id="dispExpense" class="text-2xl font-bold">₹ 0</h2>
+
+            <!-- Expense -->
+            <div class="card-3d-wrap expense-card">
+                <div class="card-3d">
+                    <div class="card-face card-front">
+                        <p class="card-label">தேர்ந்தெடுத்த தேதியின் செலவு</p>
+                        <div class="card-value" id="dispExpense">₹ 0</div>
+                    </div>
+                    <div class="card-face card-back">
+                        <div class="card-back-icon">🧾</div>
+                        <div class="font-bold text-lg" id="dispExpenseBack">₹ 0</div>
+                        <div class="card-back-hint">இந்த நாளின் மொத்த செலவு</div>
+                    </div>
+                </div>
             </div>
-            <div class="bg-blue-600 p-4 rounded-xl shadow">
-                <p class="text-sm">மீதம் (Balance)</p>
-                <h2 id="dispBalance" class="text-2xl font-bold">₹ 0</h2>
+
+            <!-- Balance -->
+            <div class="card-3d-wrap balance-card">
+                <div class="card-3d">
+                    <div class="card-face card-front">
+                        <p class="card-label">மீதம் (Balance)</p>
+                        <div class="card-value" id="dispBalance">₹ 0</div>
+                    </div>
+                    <div class="card-face card-back">
+                        <div class="card-back-icon">📊</div>
+                        <div class="font-bold text-lg" id="dispBalanceBack">₹ 0</div>
+                        <div class="card-back-hint">வருமானம் − செலவு</div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Input Section -->
-        <div class="card p-6 mb-8">
+        <div class="panel p-6 mb-8">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-sm font-semibold mb-1">தேதி</label>
@@ -78,16 +240,21 @@
                     <input type="number" id="entryAmount" placeholder="0" class="w-full border rounded-lg px-3 py-2 outline-none focus:border-indigo-500">
                 </div>
             </div>
-            <button onclick="addEntry()" class="w-full mt-4 bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700">பதிவேற்று</button>
+            <button onclick="addEntry()" id="addBtn" class="w-full mt-4 bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                பதிவேற்று ☁️
+            </button>
         </div>
 
         <!-- Table Section -->
-        <div class="card p-6">
+        <div class="panel p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold">வரவு செலவு பட்டியல்</h2>
-                <button onclick="downloadPDF()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-green-700">PDF டவுன்லோட் (Full Month)</button>
+                <button onclick="downloadPDF()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-green-700">
+                    PDF டவுன்லோட் (Full Month)
+                </button>
             </div>
-            <div class="overflow-x-auto">
+            <div id="loadingMsg" class="text-center text-gray-400 py-8">☁️ Cloud இலிருந்து ஏற்றுகிறது...</div>
+            <div class="overflow-x-auto hidden" id="tableWrap">
                 <table class="w-full text-left">
                     <thead>
                         <tr class="bg-gray-100 border-b">
@@ -99,133 +266,211 @@
                             <th class="p-3 text-center">நீக்கு</th>
                         </tr>
                     </thead>
-                    <tbody id="mainTableBody">
-                    </tbody>
+                    <tbody id="mainTableBody"></tbody>
                 </table>
             </div>
             <button onclick="clearDatabase()" class="mt-6 text-red-500 text-sm underline">அனைத்து கணக்குகளையும் அழி</button>
         </div>
     </div>
 
-    <script>
-        let myData = JSON.parse(localStorage.getItem('smcsc_accounts')) || [];
+    <!-- Sync Status Badge -->
+    <div id="syncStatus" class="sync-ok">
+        <div class="sync-dot"></div>
+        <span id="syncText">தயார்</span>
+    </div>
 
+    <script>
+        let myData = [];
+        let firebaseReady = false;
+
+        // ── Sync Status UI ──
+        function setSyncStatus(state, text) {
+            const el = document.getElementById('syncStatus');
+            el.className = '';
+            el.classList.add('sync-' + state);
+            document.getElementById('syncText').textContent = text;
+        }
+
+        // ── Wait for Firebase ──
+        function waitForFirebase() {
+            return new Promise(resolve => {
+                if (window._firebaseReady) { resolve(); return; }
+                window.addEventListener('firebaseReady', resolve, { once: true });
+                setTimeout(() => resolve(), 8000); // fallback timeout
+            });
+        }
+
+        // ── Load all data from Firestore ──
+        async function loadFromCloud() {
+            const { collection, getDocs, query, orderBy } = window._fsOps;
+            const db = window._db;
+            setSyncStatus('busy', 'ஏற்றுகிறது...');
+            try {
+                const q = query(collection(db, 'smcsc_accounts'), orderBy('date', 'desc'));
+                const snap = await getDocs(q);
+                myData = snap.docs.map(d => ({ ...d.data(), _id: d.id }));
+                setSyncStatus('ok', 'Cloud Sync ✓');
+                document.getElementById('setupBanner').style.display = 'none';
+            } catch(e) {
+                console.error(e);
+                setSyncStatus('err', 'Firebase அமைக்கவும்!');
+                // Fall back to localStorage if Firebase not configured
+                myData = JSON.parse(localStorage.getItem('smcsc_accounts') || '[]');
+            }
+            document.getElementById('loadingMsg').classList.add('hidden');
+            document.getElementById('tableWrap').classList.remove('hidden');
+            renderData();
+        }
+
+        // ── Render table for selected date ──
         function renderData() {
             const tbody = document.getElementById('mainTableBody');
-            const selectedDate = document.getElementById('entryDate').value; 
+            const selectedDate = document.getElementById('entryDate').value;
             tbody.innerHTML = '';
-            
-            let totalInc = 0;
-            let totalExp = 0;
+            let totalInc = 0, totalExp = 0;
 
-            myData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            const sorted = [...myData].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            myData.forEach((item, index) => {
-                if (item.date === selectedDate) {
-                    const isInc = item.type === 'Income';
-                    const incAmt = isInc ? parseFloat(item.amount) : 0;
-                    const expAmt = !isInc ? parseFloat(item.amount) : 0;
-                    
-                    totalInc += incAmt;
-                    totalExp += expAmt;
+            sorted.forEach((item) => {
+                if (item.date !== selectedDate) return;
+                const isInc = item.type === 'Income';
+                const incAmt = isInc ? parseFloat(item.amount) : 0;
+                const expAmt = !isInc ? parseFloat(item.amount) : 0;
+                totalInc += incAmt;
+                totalExp += expAmt;
 
-                    tbody.innerHTML += `
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="p-3">${item.date}</td>
-                            <td class="p-3">${item.category}</td>
-                            <td class="p-3">
-                                <span class="px-2 py-1 rounded text-xs font-bold ${isInc ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
-                                    ${isInc ? 'வருமானம்' : 'செலவு'}
-                                </span>
-                            </td>
-                            <td class="p-3 text-right text-green-600 font-semibold">${incAmt > 0 ? '₹'+incAmt.toFixed(2) : '-'}</td>
-                            <td class="p-3 text-right text-red-600 font-semibold">${expAmt > 0 ? '₹'+expAmt.toFixed(2) : '-'}</td>
-                            <td class="p-3 text-center">
-                                <button onclick="deleteRow(${index})" class="text-gray-400 hover:text-red-500">✕</button>
-                            </td>
-                        </tr>
-                    `;
-                }
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50 transition-colors">
+                        <td class="p-3">${item.date}</td>
+                        <td class="p-3">${item.category}</td>
+                        <td class="p-3">
+                            <span class="px-2 py-1 rounded text-xs font-bold ${isInc ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                                ${isInc ? 'வருமானம்' : 'செலவு'}
+                            </span>
+                        </td>
+                        <td class="p-3 text-right text-green-600 font-semibold">${incAmt > 0 ? '₹'+incAmt.toFixed(2) : '-'}</td>
+                        <td class="p-3 text-right text-red-600 font-semibold">${expAmt > 0 ? '₹'+expAmt.toFixed(2) : '-'}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="deleteRow('${item._id}')" class="text-gray-400 hover:text-red-500 text-lg transition-colors">✕</button>
+                        </td>
+                    </tr>`;
             });
 
-            document.getElementById('dispIncome').innerText = `₹ ${totalInc.toFixed(2)}`;
-            document.getElementById('dispExpense').innerText = `₹ ${totalExp.toFixed(2)}`;
-            document.getElementById('dispBalance').innerText = `₹ ${(totalInc - totalExp).toFixed(2)}`;
-            
+            const bal = totalInc - totalExp;
+            ['dispIncome', 'dispIncomeBack'].forEach(id => document.getElementById(id).innerText = `₹ ${totalInc.toFixed(2)}`);
+            ['dispExpense', 'dispExpenseBack'].forEach(id => document.getElementById(id).innerText = `₹ ${totalExp.toFixed(2)}`);
+            ['dispBalance', 'dispBalanceBack'].forEach(id => document.getElementById(id).innerText = `₹ ${bal.toFixed(2)}`);
+
+            // Also persist to localStorage as backup
             localStorage.setItem('smcsc_accounts', JSON.stringify(myData));
         }
 
-        function addEntry() {
-            const date = document.getElementById('entryDate').value;
-            const type = document.getElementById('entryType').value;
+        // ── Add entry ──
+        async function addEntry() {
+            const date     = document.getElementById('entryDate').value;
+            const type     = document.getElementById('entryType').value;
             const category = document.getElementById('entryCategory').value;
-            const amount = document.getElementById('entryAmount').value;
+            const amount   = document.getElementById('entryAmount').value;
 
-            if (!date || !amount) {
-                alert("தேதி மற்றும் தொகையை நிரப்பவும்!");
-                return;
+            if (!date || !amount) { alert('தேதி மற்றும் தொகையை நிரப்பவும்!'); return; }
+
+            const btn = document.getElementById('addBtn');
+            btn.disabled = true;
+            btn.textContent = 'சேமிக்கிறது...';
+            setSyncStatus('busy', 'சேமிக்கிறது...');
+
+            const entry = { date, type, category, amount: parseFloat(amount), createdAt: Date.now() };
+
+            try {
+                const { collection, addDoc } = window._fsOps;
+                const docRef = await addDoc(collection(window._db, 'smcsc_accounts'), entry);
+                entry._id = docRef.id;
+                setSyncStatus('ok', 'சேமிக்கப்பட்டது ✓');
+            } catch(e) {
+                console.error(e);
+                entry._id = 'local_' + Date.now();
+                setSyncStatus('err', 'Cloud error - local only');
             }
 
-            myData.push({ date, type, category, amount });
+            myData.unshift(entry);
             renderData();
             document.getElementById('entryAmount').value = '';
+            btn.disabled = false;
+            btn.textContent = 'பதிவேற்று ☁️';
         }
 
-        function deleteRow(index) {
-            if(confirm("இதை நீக்க வேண்டுமா?")) {
-                myData.splice(index, 1);
-                renderData();
+        // ── Delete row ──
+        async function deleteRow(docId) {
+            if (!confirm('இதை நீக்க வேண்டுமா?')) return;
+            setSyncStatus('busy', 'நீக்குகிறது...');
+
+            try {
+                if (!docId.startsWith('local_')) {
+                    const { doc, deleteDoc } = window._fsOps;
+                    await deleteDoc(doc(window._db, 'smcsc_accounts', docId));
+                }
+                setSyncStatus('ok', 'நீக்கப்பட்டது ✓');
+            } catch(e) {
+                console.error(e);
+                setSyncStatus('err', 'நீக்க முடியவில்லை');
             }
+
+            myData = myData.filter(i => i._id !== docId);
+            renderData();
         }
 
-        function clearDatabase() {
-            if(confirm("அனைத்து தரவுகளும் நிரந்தரமாக அழிக்கப்படும். தொடரலாமா?")) {
-                myData = [];
-                renderData();
+        // ── Clear all ──
+        async function clearDatabase() {
+            if (!confirm('அனைத்து தரவுகளும் நிரந்தரமாக அழிக்கப்படும். தொடரலாமா?')) return;
+            setSyncStatus('busy', 'அழிக்கிறது...');
+
+            try {
+                const { collection, getDocs, doc, deleteDoc } = window._fsOps;
+                const snap = await getDocs(collection(window._db, 'smcsc_accounts'));
+                const deletes = snap.docs.map(d => deleteDoc(doc(window._db, 'smcsc_accounts', d.id)));
+                await Promise.all(deletes);
+                setSyncStatus('ok', 'அழிக்கப்பட்டது ✓');
+            } catch(e) {
+                setSyncStatus('err', 'Cloud error');
             }
+
+            myData = [];
+            localStorage.removeItem('smcsc_accounts');
+            renderData();
         }
 
+        // ── PDF Download ──
         function downloadPDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const selectedDate = document.getElementById('entryDate').value;
-            
-            if (!selectedDate) {
-                alert("தயவுசெய்து ஒரு தேதியைத் தேர்ந்தெடுக்கவும்!");
-                return;
-            }
+            if (!selectedDate) { alert('தயவுசெய்து ஒரு தேதியைத் தேர்ந்தெடுக்கவும்!'); return; }
 
-            // வருடம் மற்றும் மாதத்தை பிரித்தெடுக்கிறது (உதாரணம்: "2026-05")
-            const targetMonth = selectedDate.substring(0, 7); 
-
+            const targetMonth = selectedDate.substring(0, 7);
             doc.setFontSize(18);
-            doc.text("SMCSC - Monthly Financial Report", 14, 15);
+            doc.text('SMCSC - Monthly Financial Report', 14, 15);
             doc.setFontSize(10);
-            doc.text("Report for Month: " + targetMonth, 14, 22);
+            doc.text('Report for Month: ' + targetMonth, 14, 22);
 
-            // தேர்ந்தெடுக்கப்பட்ட மாதத்திற்குரிய அனைத்து டேட்டாவையும் வடிகட்டுகிறது
             const filteredData = myData.filter(item => item.date.startsWith(targetMonth));
-            
-            // தேதியின் அடிப்படையில் வரிசைப்படுத்துதல் (Oldest to Newest for Report)
             filteredData.sort((a, b) => new Date(a.date) - new Date(b.date));
 
             const tableRows = filteredData.map(item => [
-                item.date,
-                item.category,
+                item.date, item.category,
                 item.type === 'Income' ? 'Income' : 'Expense',
                 item.type === 'Income' ? parseFloat(item.amount).toFixed(2) : '-',
                 item.type === 'Expense' ? parseFloat(item.amount).toFixed(2) : '-'
             ]);
 
-            const tInc = filteredData.filter(i => i.type === 'Income').reduce((s, c) => s + parseFloat(c.amount), 0);
-            const tExp = filteredData.filter(i => i.type === 'Expense').reduce((s, c) => s + parseFloat(c.amount), 0);
+            const tInc = filteredData.filter(i => i.type === 'Income').reduce((s,c) => s + parseFloat(c.amount), 0);
+            const tExp = filteredData.filter(i => i.type === 'Expense').reduce((s,c) => s + parseFloat(c.amount), 0);
 
             doc.autoTable({
-                head: [['Date', 'Description', 'Type', 'Income (INR)', 'Expense (INR)']],
+                head: [['Date','Description','Type','Income (INR)','Expense (INR)']],
                 body: tableRows,
                 startY: 30,
                 theme: 'grid',
-                headStyles: { fillHexColor: '#4f46e5' }
+                headStyles: { fillColor: [79, 70, 229] }
             });
 
             const finalY = doc.lastAutoTable.finalY + 10;
@@ -233,12 +478,12 @@
             doc.text(`Monthly Total Expense: Rs. ${tExp.toFixed(2)}`, 14, finalY + 7);
             doc.setFont(undefined, 'bold');
             doc.text(`Monthly Net Balance: Rs. ${(tInc - tExp).toFixed(2)}`, 14, finalY + 14);
-
             doc.save(`SMCSC_Monthly_Report_${targetMonth}.pdf`);
         }
 
+        // ── Init ──
         document.getElementById('entryDate').valueAsDate = new Date();
-        renderData();
+        waitForFirebase().then(loadFromCloud);
     </script>
 </body>
 </html>
